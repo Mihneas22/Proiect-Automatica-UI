@@ -7,6 +7,8 @@ import { LoginForm } from "./components/LoginForm";
 import { RegisterForm } from "./components/RegisterForm";
 import { useAuth } from "./hooks/useAuth"
 import { GetUserDTO } from "./types/auth";
+import AdminDashboard from "./components/AdminDashboard";
+import AddProblemPage from "./components/AddProblemPage";
 
 function App() {
   const { user, token } = useAuth();
@@ -58,15 +60,14 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <Routes>
-        {/* Authentication routes */}
         <Route path="/login" element={<LoginForm onSwitchToRegister={() => {}} />} />
         <Route path="/register" element={<RegisterForm onSwitchToLogin={() => {}} />} />
 
-        {/* Problems list and detail */}
         <Route path="/" element={<ProblemsList/>} />
         <Route path="/problems/:id" element={<ProblemDetail />}/>
+        <Route path="/admin" element={<AdminDashboard />}/>
+        <Route path="/admin/addProblem" element={<AddProblemPage />}/>
 
-        {/* Fallback 404 */}
         <Route path="*" element={<p className="p-4">Page not found</p>} />
       </Routes>
     </div>

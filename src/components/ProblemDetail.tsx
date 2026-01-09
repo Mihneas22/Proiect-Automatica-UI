@@ -3,11 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, Play, Upload, ChevronDown, 
   FileCode, Terminal, Info, CheckCircle2, 
-  Plus, X, Settings2 
+  Plus, X, Settings2, Clock
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import AddSubmissionDTO from "../types/compiler";
-import { Problem, User } from "../data/problems";
+import { Problem, Submission, User } from "../types/models";
 import { GetUserDTO } from "../types/auth";
 
 type CodeFile = { id: string; name: string; content: string; };
@@ -17,24 +17,62 @@ export default function ProblemDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // --- State ---
   const [userData, setUser] = useState<User | null>(null);
   const [problem, setProblems] = useState<Problem>();
-  const [activeTab, setActiveTab] = useState<"description" | "solutions" | "submissions">("description");
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [activeTab, setActiveTab] = useState<"description" | "submissions">("description");
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
 
-  // File Management
   const [files, setFiles] = useState<CodeFile[]>([{ id: "main", name: "main.c", content: "" }]);
   const [activeFileId, setActiveFileId] = useState("main");
 
   const activeFile = files.find((f) => f.id === activeFileId) || files[0];
 
-  // --- Helpers ---
   const normalizeArray = <T,>(obj?: { $values?: T[] } | T[]): T[] => {
     if (Array.isArray(obj)) return obj;
     return Array.isArray(obj?.$values) ? obj.$values : [];
   };
+
+  const fetchData = async () => {
+    if (!token) return;
+    try {
+      const userDto: GetUserDTO = { Username: user?.name || "", Email: user?.email || "" };
+      const [userRes, probRes] = await Promise.all([
+        fetch("http://localhost:5052/api/user/getUser", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(userDto),
+        }),
+        fetch(`http://localhost:5052/api/problem/getProblem/${id}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        })
+      ]);
+
+      if (userRes.ok) {
+        const res = await userRes.json();
+        setUser(res.user);
+      }
+
+      if (probRes.ok) {
+        const res = await probRes.json();
+        if (res.problem) {
+          res.problem.tags = normalizeArray(res.problem.tags);
+          res.problem.inputsJson = normalizeArray(res.problem.inputsJson);
+          res.problem.outputsJson = normalizeArray(res.problem.outputsJson);
+          setProblems(res.problem);
+          setSubmissions(normalizeArray(res.problem.problemSubmissions))
+        }
+      }
+    } catch (error: any) {
+      console.error("Initialization Error:", error.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [token, id, user?.name, user?.email]);
 
   const createSubmissionPayload = (): AddSubmissionDTO | null => {
     if (!userData || !problem) return null;
@@ -49,46 +87,6 @@ export default function ProblemDetail() {
     };
   };
 
-  // --- Effects ---
-  useEffect(() => {
-    if (!token) return;
-    const fetchData = async () => {
-      try {
-        const userDto: GetUserDTO = { Username: user?.name || "", Email: user?.email || "" };
-        const [userRes, probRes] = await Promise.all([
-          fetch("http://localhost:5052/api/user/getUser", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify(userDto),
-          }),
-          fetch(`http://localhost:5052/api/problem/getProblem/${id}`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          })
-        ]);
-
-        if (userRes.ok) {
-          const res = await userRes.json();
-          setUser(res.user);
-        }
-
-        if (probRes.ok) {
-          const res = await probRes.json();
-          if (res.problem) {
-            res.problem.tags = normalizeArray(res.problem.tags);
-            res.problem.inputsJson = normalizeArray(res.problem.inputsJson);
-            res.problem.outputsJson = normalizeArray(res.problem.outputsJson);
-            setProblems(res.problem);
-          }
-        }
-      } catch (error: any) {
-        console.error("Initialization Error:", error.message);
-      }
-    };
-    fetchData();
-  }, [token, id, user?.name, user?.email]);
-
-  // --- Handlers ---
   const handleAction = async (endpoint: string) => {
     const payload = createSubmissionPayload();
     if (!payload) return setConsoleOutput(["Auth error: Please log in again."]);
@@ -104,6 +102,10 @@ export default function ProblemDetail() {
       });
       const result = await response.json();
       setConsoleOutput([result.message]);
+
+      if (endpoint === 'addSubmission') {
+        await fetchData();
+      }
     } catch (err: any) {
       setConsoleOutput(["Error", err.message]);
     } finally {
@@ -113,7 +115,6 @@ export default function ProblemDetail() {
 
   return (
     <div className="h-screen flex flex-col bg-[#F7F8FA]">
-      {/* HEADER */}
       <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shadow-sm z-10">
         <div className="flex items-center space-x-4">
           <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-all text-gray-500 hover:text-emerald-600">
@@ -126,19 +127,16 @@ export default function ProblemDetail() {
           </div>
         </div>
         <div className="flex items-center space-x-3 text-sm">
-            <div className={`px-3 py-1 rounded-full font-medium ${problem?.acceptanceRate && problem.acceptanceRate > 50 ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                {problem?.acceptanceRate}% Acceptance
-            </div>
+          <div className={`px-3 py-1 rounded-full font-medium ${problem?.acceptanceRate && problem.acceptanceRate > 50 ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+            {problem?.acceptanceRate}% Acceptance
+          </div>
         </div>
       </header>
 
-      {/* MAIN CONTENT */}
       <main className="flex-1 flex overflow-hidden">
-        
-        {/* LEFT PANEL: Problem Info */}
         <section className="w-1/2 flex flex-col bg-white border-r border-gray-200">
           <div className="flex border-b border-gray-100 px-4">
-            {(["description", "solutions", "submissions"] as const).map((tab) => (
+            {(["description", "submissions"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -154,7 +152,7 @@ export default function ProblemDetail() {
 
           <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
             {activeTab === "description" ? (
-              <div className="max-w-3xl space-y-8">
+              <div className="max-w-3xl space-y-8 animate-in fade-in duration-300">
                 <div className="prose prose-slate max-w-none">
                   <p className="text-gray-700 leading-relaxed text-base whitespace-pre-line font-sans">
                     {problem?.content}
@@ -169,10 +167,10 @@ export default function ProblemDetail() {
                     {problem?.inputsJson?.map((input, idx) => (
                       <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100 font-mono text-xs">
                         <div className="grid grid-cols-12 gap-2">
-                            <span className="col-span-2 text-gray-400 font-bold uppercase">Input</span>
-                            <span className="col-span-10 text-gray-800 bg-white p-1 rounded border border-gray-200">{input}</span>
-                            <span className="col-span-2 text-gray-400 font-bold uppercase">Output</span>
-                            <span className="col-span-10 text-emerald-700 font-bold">{problem.outputsJson[idx]}</span>
+                          <span className="col-span-2 text-gray-400 font-bold uppercase">Input</span>
+                          <span className="col-span-10 text-gray-800 bg-white p-1 rounded border border-gray-200">{input}</span>
+                          <span className="col-span-2 text-gray-400 font-bold uppercase">Output</span>
+                          <span className="col-span-10 text-emerald-700 font-bold">{problem.outputsJson[idx]}</span>
                         </div>
                       </div>
                     ))}
@@ -180,27 +178,73 @@ export default function ProblemDetail() {
                 </div>
 
                 <div className="pt-6 border-t border-gray-100">
-                    <div className="flex flex-wrap gap-2">
-                        {problem?.tags.map(tag => (
-                            <span key={tag} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-md text-xs font-bold uppercase tracking-tight">
-                                {tag}
-                            </span>
-                        ))}
-                    </div>
+                  <div className="flex flex-wrap gap-2">
+                    {problem?.tags.map(tag => (
+                      <span key={tag} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-md text-xs font-bold uppercase tracking-tight">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : activeTab === "submissions" ? (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <h3 className="text-lg font-bold text-gray-900">Recent Submissions</h3>
+                <div className="space-y-3">
+                  {submissions.filter(s => s.problemId === id).length > 0 ? (
+                    submissions
+                      .filter(s => s.problemId === id)
+                      .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+                      .map((sub) => {
+                        const isAccepted = Number(sub.status) === 1;
+                        return (
+                          <div key={sub.submissionId} className="group bg-white border border-gray-100 rounded-xl p-4 hover:border-emerald-200 transition-all shadow-sm">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-4">
+                                <div className={`p-2 rounded-lg ${isAccepted ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                  {isAccepted ? <CheckCircle2 className="w-5 h-5" /> : <X className="w-5 h-5" />}
+                                </div>
+                                <div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className={`font-bold text-sm ${isAccepted ? 'text-emerald-600' : 'text-red-600'}`}>
+                                      {isAccepted ? "Accepted" : "Wrong Answer"}
+                                    </span>
+                                    <span className="text-gray-300 text-xs">•</span>
+                                    <span className="text-gray-500 text-[11px] flex items-center">
+                                      <Clock className="w-3 h-3 mr-1" /> {new Date(sub.submittedAt).toLocaleTimeString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-400 mt-0.5 italic">{sub.message}</p>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  setFiles([{ id: "main", name: "main.c", content: sub.content }]);
+                                  setActiveFileId("main");
+                                }}
+                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-bold uppercase rounded-lg transition-all"
+                              >
+                                Restore
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                  ) : (
+                    <div className="text-center py-20 text-gray-400 italic">No submissions yet.</div>
+                  )}
                 </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-gray-400 italic">
                 <CheckCircle2 className="w-12 h-12 mb-4 opacity-20" />
-                Coming soon...
+                Solutions are currently hidden.
               </div>
             )}
           </div>
         </section>
 
-        {/* RIGHT PANEL: Editor */}
         <section className="w-1/2 flex flex-col bg-[#1e1e1e]">
-          {/* Toolbar */}
           <div className="h-12 bg-[#252526] border-b border-black/20 flex items-center justify-between px-4">
             <div className="flex items-center space-x-2 bg-[#333333] px-3 py-1 rounded border border-[#444] text-emerald-400 text-xs font-bold">
               <FileCode className="w-3.5 h-3.5" />
@@ -219,7 +263,8 @@ export default function ProblemDetail() {
               </button>
               <button 
                 onClick={() => handleAction('addSubmission')}
-                className="flex items-center space-x-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md transition-all shadow-lg shadow-emerald-900/20"
+                disabled={isRunning}
+                className="flex items-center space-x-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span className="text-xs font-bold uppercase tracking-wide">Submit</span>
@@ -227,7 +272,6 @@ export default function ProblemDetail() {
             </div>
           </div>
 
-          {/* File Tabs */}
           <div className="flex bg-[#252526] overflow-x-auto no-scrollbar border-b border-black/20">
             {files.map((file) => (
               <div 
@@ -253,9 +297,9 @@ export default function ProblemDetail() {
             ))}
             <button 
                onClick={() => {
-                 const id = crypto.randomUUID();
-                 setFiles([...files, { id, name: `module_${files.length}.c`, content: "" }]);
-                 setActiveFileId(id);
+                 const newId = crypto.randomUUID();
+                 setFiles([...files, { id: newId, name: `module_${files.length}.c`, content: "" }]);
+                 setActiveFileId(newId);
                }}
                className="p-3 text-gray-500 hover:text-white transition-colors"
             >
@@ -263,12 +307,11 @@ export default function ProblemDetail() {
             </button>
           </div>
 
-          {/* Editor Area */}
           <div className="flex-1 relative group">
             <textarea
               value={activeFile.content}
               onChange={(e) => setFiles(prev => prev.map(f => f.id === activeFileId ? { ...f, content: e.target.value } : f))}
-              className="w-full h-full p-6 bg-[#1e1e1e] text-emerald-50/90 font-mono text-sm resize-none focus:outline-none leading-relaxed"
+              className="w-full h-full p-6 bg-[#1e1e1e] text-emerald-50/90 font-mono text-sm resize-none focus:outline-none leading-relaxed custom-scrollbar"
               spellCheck={false}
               placeholder="// Type your code here..."
             />
@@ -277,7 +320,6 @@ export default function ProblemDetail() {
             </div>
           </div>
 
-          {/* Console Section */}
           <div className="h-48 bg-[#1a1a1a] border-t border-[#333]">
             <div className="flex items-center px-4 py-2 bg-[#252526] text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-[#333]">
               <Terminal className="w-3 h-3 mr-2" />
@@ -285,12 +327,12 @@ export default function ProblemDetail() {
             </div>
             <div className="p-4 overflow-y-auto h-[calc(100%-32px)] custom-scrollbar">
               {consoleOutput.map((line, i) => (
-                <div key={i} className="font-mono text-xs text-gray-400 mb-1 flex animate-in fade-in slide-in-from-left-2">
+                <div key={i} className="font-mono text-[11px] text-gray-400 mb-1 flex animate-in fade-in slide-in-from-left-2">
                   <span className="text-emerald-900 mr-3 select-none">$</span>
-                  <span className={line.includes("Error") ? "text-red-400" : ""}>{line}</span>
+                  <span className={line.includes("Error") || line.includes("failed") ? "text-red-400" : ""}>{line}</span>
                 </div>
               ))}
-              {consoleOutput.length === 0 && <div className="text-gray-600 font-mono text-xs italic">Waiting for execution...</div>}
+              {consoleOutput.length === 0 && <div className="text-gray-600 font-mono text-[11px] italic">Waiting for execution...</div>}
             </div>
           </div>
         </section>

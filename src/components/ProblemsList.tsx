@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Problem } from "../data/problems";
+import { Problem } from "../types/models";
 import { useAuth } from "../hooks/useAuth";
 import { Tag, BookOpen, BarChart3, ChevronRight } from "lucide-react";
 
