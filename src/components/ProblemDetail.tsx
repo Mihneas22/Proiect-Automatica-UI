@@ -1,498 +1,300 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Upload, ChevronDown } from "lucide-react";
+import { 
+  ArrowLeft, Play, Upload, ChevronDown, 
+  FileCode, Terminal, Info, CheckCircle2, 
+  Plus, X, Settings2 
+} from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import AddSubmissionDTO from "../types/compiler";
 import { Problem, User } from "../data/problems";
 import { GetUserDTO } from "../types/auth";
 
+type CodeFile = { id: string; name: string; content: string; };
+
 export default function ProblemDetail() {
   const { user, token } = useAuth();
-  const [userData, setUser] = useState<User | null>(null);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  // --- State ---
+  const [userData, setUser] = useState<User | null>(null);
   const [problem, setProblems] = useState<Problem>();
-
-  type CodeFile = {
-    id: string;
-    name: string;
-    content: string;
-  };
-
-  const [files, setFiles] = useState<CodeFile[]>([
-    { id: "main", name: "main.c", content: "" },
-  ]);
-
-  const [activeFileId, setActiveFileId] = useState("main");
-  const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
-  const [tempFileName, setTempFileName] = useState("");
-
-  const activeFile = files.find((f) => f.id === activeFileId) || files[0];
-
-  const normalizeArray = <T,>(obj?: { $values?: T[] }): T[] => {
-    return Array.isArray(obj?.$values) ? obj.$values : [];
-  };
-
-  useEffect(() => {
-    if (!token) return;
-
-    const userDto: GetUserDTO = {
-      Username: user?.name || "",
-      Email: user?.email || "",
-    };
-
-    const userDataFetch = async () => {
-      try {
-        const response = await fetch("http://localhost:5052/api/user/getUser", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(userDto),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || "Failed to fetch user");
-        }
-
-        const result = await response.json();
-        console.log("RAW USER FROM API:", result.user);
-        setUser(result.user);
-
-        if (result.flag == false) {
-          console.log("Error: " + result.message);
-          return;
-        }
-      } catch (error: any) {
-        console.error("Error fetching user:", error.message);
-      }
-    };
-
-    userDataFetch();
-
-    const getProblems = async () => {
-      try {
-        const response = await fetch(
-          `http://localhost:5052/api/problem/getProblem/${id}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || "Failed to fetch problems");
-        }
-
-        const result = await response.json();
-
-        if (result.problem) {
-          result.problem.tags = normalizeArray(result.problem.tags);
-          result.problem.inputsJson = normalizeArray(result.problem.inputsJson);
-          result.problem.outputsJson = normalizeArray(result.problem.outputsJson);
-        }
-
-        setProblems(result.problem);
-      } catch (error: any) {
-        console.error("Error fetching problems:", error.message);
-      }
-    };
-
-    getProblems();
-  }, [token, id]);
-
-  useEffect(() => {
-    if (user) console.log("User logged", user);
-  }, [user]);
-
-  const [activeTab, setActiveTab] = useState<
-    "description" | "solutions" | "submissions"
-  >("description");
+  const [activeTab, setActiveTab] = useState<"description" | "solutions" | "submissions">("description");
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
 
-  const handleRun = async () => {
-    if (!userData || !problem) {
-      setConsoleOutput(["You must be logged in and select a problem."]);
-      return;
-    }
+  // File Management
+  const [files, setFiles] = useState<CodeFile[]>([{ id: "main", name: "main.c", content: "" }]);
+  const [activeFileId, setActiveFileId] = useState("main");
 
-    const mergedSourceCode: Record<string, string> = {};
-    files.forEach((file) => {
-      mergedSourceCode[file.name] = file.content;
-    });
+  const activeFile = files.find((f) => f.id === activeFileId) || files[0];
 
-    setConsoleOutput(["Running solution..."]);
-
-    const runAllTests = async () => {
-      const payload: AddSubmissionDTO = {
-        sourceCode: mergedSourceCode,
-        namesOfFiles: files.map((f) => f.name),
-        userId: userData.id,
-        problemId: problem.problemId,
-      };
-
-      const response = await fetch(
-        "http://localhost:5052/api/compiler/runCode",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const result = await response.json();
-      setConsoleOutput([result.message]);
-    };
-    runAllTests();
+  // --- Helpers ---
+  const normalizeArray = <T,>(obj?: { $values?: T[] } | T[]): T[] => {
+    if (Array.isArray(obj)) return obj;
+    return Array.isArray(obj?.$values) ? obj.$values : [];
   };
 
-  const handleSubmit = async () => {
-    if (!userData || !problem) {
-      setConsoleOutput(["You must be logged in and select a problem."]);
-      return;
-    }
-
-    setConsoleOutput(["Submitting solution..."]);
-
+  const createSubmissionPayload = (): AddSubmissionDTO | null => {
+    if (!userData || !problem) return null;
     const mergedSourceCode: Record<string, string> = {};
-    files.forEach((file) => {
-      mergedSourceCode[file.name] = file.content;
-    });
+    files.forEach((file) => { mergedSourceCode[file.name] = file.content; });
 
-    const payload: AddSubmissionDTO = {
+    return {
       sourceCode: mergedSourceCode,
       namesOfFiles: files.map((f) => f.name),
       userId: userData.id,
       problemId: problem.problemId,
     };
+  };
+
+  // --- Effects ---
+  useEffect(() => {
+    if (!token) return;
+    const fetchData = async () => {
+      try {
+        const userDto: GetUserDTO = { Username: user?.name || "", Email: user?.email || "" };
+        const [userRes, probRes] = await Promise.all([
+          fetch("http://localhost:5052/api/user/getUser", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify(userDto),
+          }),
+          fetch(`http://localhost:5052/api/problem/getProblem/${id}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          })
+        ]);
+
+        if (userRes.ok) {
+          const res = await userRes.json();
+          setUser(res.user);
+        }
+
+        if (probRes.ok) {
+          const res = await probRes.json();
+          if (res.problem) {
+            res.problem.tags = normalizeArray(res.problem.tags);
+            res.problem.inputsJson = normalizeArray(res.problem.inputsJson);
+            res.problem.outputsJson = normalizeArray(res.problem.outputsJson);
+            setProblems(res.problem);
+          }
+        }
+      } catch (error: any) {
+        console.error("Initialization Error:", error.message);
+      }
+    };
+    fetchData();
+  }, [token, id, user?.name, user?.email]);
+
+  // --- Handlers ---
+  const handleAction = async (endpoint: string) => {
+    const payload = createSubmissionPayload();
+    if (!payload) return setConsoleOutput(["Auth error: Please log in again."]);
+
+    setIsRunning(true);
+    setConsoleOutput([`${endpoint === 'runCode' ? 'Running' : 'Submitting'}...`]);
 
     try {
-      const response = await fetch(
-        "http://localhost:5052/api/compiler/addSubmission",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Submission failed");
-      }
-
+      const response = await fetch(`http://localhost:5052/api/compiler/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
       const result = await response.json();
-
-      setConsoleOutput([
-        result.message
-      ]);
-    } catch (error: any) {
-      setConsoleOutput([
-        "Submission failed",
-        "",
-        error.message || "Unexpected error",
-      ]);
+      setConsoleOutput([result.message]);
+    } catch (err: any) {
+      setConsoleOutput(["Error", err.message]);
+    } finally {
+      setIsRunning(false);
     }
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
-        <div className="max-w-[1800px] mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <div className="flex items-center space-x-3">
-              <span className="text-sm font-medium text-gray-600">
-                {problem?.problemId}.
-              </span>
-              <h1 className="text-lg font-semibold text-gray-900">
-                {problem?.name}
-              </h1>
-            </div>
+    <div className="h-screen flex flex-col bg-[#F7F8FA]">
+      {/* HEADER */}
+      <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shadow-sm z-10">
+        <div className="flex items-center space-x-4">
+          <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-all text-gray-500 hover:text-emerald-600">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="h-6 w-[1px] bg-gray-200 mx-2" />
+          <div className="flex items-baseline space-x-2">
+            <span className="text-gray-400 font-mono text-sm">{problem?.problemId}</span>
+            <h1 className="text-base font-bold text-gray-800 tracking-tight">{problem?.name}</h1>
           </div>
         </div>
-      </div>
-
-      <div className="flex-1 flex overflow-hidden">
-        <div className="w-1/2 border-r border-gray-200 overflow-y-auto bg-white">
-          <div className="p-6">
-            <div className="flex space-x-6 border-b border-gray-200 mb-6">
-              <button
-                onClick={() => setActiveTab("description")}
-                className={`pb-3 px-1 font-medium transition-colors ${
-                  activeTab === "description"
-                    ? "text-emerald-600 border-b-2 border-emerald-600"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                Description
-              </button>
-              <button
-                onClick={() => setActiveTab("solutions")}
-                className={`pb-3 px-1 font-medium transition-colors ${
-                  activeTab === "solutions"
-                    ? "text-emerald-600 border-b-2 border-emerald-600"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                Solutions
-              </button>
-              <button
-                onClick={() => setActiveTab("submissions")}
-                className={`pb-3 px-1 font-medium transition-colors ${
-                  activeTab === "submissions"
-                    ? "text-emerald-600 border-b-2 border-emerald-600"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                Submissions
-              </button>
+        <div className="flex items-center space-x-3 text-sm">
+            <div className={`px-3 py-1 rounded-full font-medium ${problem?.acceptanceRate && problem.acceptanceRate > 50 ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                {problem?.acceptanceRate}% Acceptance
             </div>
+        </div>
+      </header>
 
-            {activeTab === "description" && (
-              <div className="space-y-6">
-                <div>
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+      {/* MAIN CONTENT */}
+      <main className="flex-1 flex overflow-hidden">
+        
+        {/* LEFT PANEL: Problem Info */}
+        <section className="w-1/2 flex flex-col bg-white border-r border-gray-200">
+          <div className="flex border-b border-gray-100 px-4">
+            {(["description", "solutions", "submissions"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-3 text-sm font-semibold capitalize transition-all relative ${
+                  activeTab === tab ? "text-emerald-600" : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                {tab}
+                {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500" />}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+            {activeTab === "description" ? (
+              <div className="max-w-3xl space-y-8">
+                <div className="prose prose-slate max-w-none">
+                  <p className="text-gray-700 leading-relaxed text-base whitespace-pre-line font-sans">
                     {problem?.content}
                   </p>
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Examples
+                <div className="space-y-4">
+                  <h3 className="flex items-center text-sm font-bold text-gray-900 uppercase tracking-wider">
+                    <Info className="w-4 h-4 mr-2 text-emerald-500" /> Examples
                   </h3>
-                  <div className="space-y-4">
-                    {problem?.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Constraints
-                  </h3>
-                  <div className="space-y-1">
-                    {problem?.inputsJson?.map((input, index) => (
-                      <div key={index} className="flex space-x-4">
-                        <span className="text-sm font-mono text-gray-700">
-                          Input: {input}
-                        </span>
-                        <span className="text-sm font-mono text-gray-700">
-                          Output: {problem.outputsJson[index]}
-                        </span>
+                  <div className="space-y-3">
+                    {problem?.inputsJson?.map((input, idx) => (
+                      <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100 font-mono text-xs">
+                        <div className="grid grid-cols-12 gap-2">
+                            <span className="col-span-2 text-gray-400 font-bold uppercase">Input</span>
+                            <span className="col-span-10 text-gray-800 bg-white p-1 rounded border border-gray-200">{input}</span>
+                            <span className="col-span-2 text-gray-400 font-bold uppercase">Output</span>
+                            <span className="col-span-10 text-emerald-700 font-bold">{problem.outputsJson[idx]}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Tags
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {problem?.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-gray-200">
-                  <div className="text-sm text-gray-600">
-                    Acceptance Rate:{" "}
-                    <span className="font-medium text-gray-900">
-                      {problem?.acceptanceRate}%
-                    </span>
-                  </div>
+                <div className="pt-6 border-t border-gray-100">
+                    <div className="flex flex-wrap gap-2">
+                        {problem?.tags.map(tag => (
+                            <span key={tag} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-md text-xs font-bold uppercase tracking-tight">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
                 </div>
               </div>
-            )}
-
-            {activeTab === "solutions" && (
-              <div className="text-center py-12 text-gray-500">
-                Solutions will be available after submission
-              </div>
-            )}
-
-            {activeTab === "submissions" && (
-              <div className="text-center py-12 text-gray-500">
-                No submissions yet
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 italic">
+                <CheckCircle2 className="w-12 h-12 mb-4 opacity-20" />
+                Coming soon...
               </div>
             )}
           </div>
-        </div>
+        </section>
 
-        <div className="w-1/2 flex flex-col bg-gray-900">
-          <div className="border-b border-gray-700 px-4 py-3 flex items-center justify-between bg-gray-800">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <select className="appearance-none bg-gray-700 text-gray-200 px-4 py-2 pr-10 rounded-lg text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer">
-                  <option>C</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-              </div>
+        {/* RIGHT PANEL: Editor */}
+        <section className="w-1/2 flex flex-col bg-[#1e1e1e]">
+          {/* Toolbar */}
+          <div className="h-12 bg-[#252526] border-b border-black/20 flex items-center justify-between px-4">
+            <div className="flex items-center space-x-2 bg-[#333333] px-3 py-1 rounded border border-[#444] text-emerald-400 text-xs font-bold">
+              <FileCode className="w-3.5 h-3.5" />
+              <span>C Language</span>
+              <ChevronDown className="w-3 h-3 text-gray-500" />
             </div>
+
             <div className="flex items-center space-x-2">
-              <button
-                onClick={handleRun}
+              <button 
+                onClick={() => handleAction('runCode')}
                 disabled={isRunning}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group flex items-center space-x-2 px-3 py-1.5 bg-[#333] hover:bg-[#444] text-gray-300 rounded-md transition-all disabled:opacity-50"
               >
-                <Play className="w-4 h-4" />
-                <span className="text-sm font-medium">Run</span>
+                <Play className="w-3.5 h-3.5 group-hover:text-emerald-400" />
+                <span className="text-xs font-bold uppercase">Run</span>
               </button>
-              <button
-                onClick={handleSubmit}
-                className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+              <button 
+                onClick={() => handleAction('addSubmission')}
+                className="flex items-center space-x-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md transition-all shadow-lg shadow-emerald-900/20"
               >
-                <Upload className="w-4 h-4" />
-                <span className="text-sm font-medium">Submit</span>
+                <Upload className="w-3.5 h-3.5" />
+                <span className="text-xs font-bold uppercase tracking-wide">Submit</span>
               </button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden flex flex-col">
-            {/* FILE TABS */}
-            <div className="flex bg-gray-800 border-b border-gray-700">
-              {files.map((file) => (
-                <div key={file.id} className="flex items-center">
-                  {renamingFileId === file.id ? (
-                    <input
-                      autoFocus
-                      value={tempFileName}
-                      onChange={(e) => setTempFileName(e.target.value)}
-                      onBlur={() => setRenamingFileId(null)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          setFiles((prev) =>
-                            prev.map((f) =>
-                              f.id === file.id
-                                ? { ...f, name: tempFileName || f.name }
-                                : f
-                            )
-                          );
-                          setRenamingFileId(null);
-                        }
-                        if (e.key === "Escape") {
-                          setRenamingFileId(null);
-                        }
-                      }}
-                      className="px-3 py-1 bg-gray-900 text-white font-mono text-sm w-32 outline-none"
-                    />
-                  ) : (
-                    <button
-                      onClick={() => setActiveFileId(file.id)}
-                      onDoubleClick={() => {
-                        setRenamingFileId(file.id);
-                        setTempFileName(file.name);
-                      }}
-                      className={`px-4 py-2 text-sm font-mono transition
-              ${
-                file.id === activeFileId
-                  ? "bg-gray-900 text-white"
-                  : "text-gray-400 hover:text-white"
-              }`}
-                    >
-                      {file.name}
-                    </button>
-                  )}
-                  {files.length > 1 && (
-                    <button
-                      onClick={() => {
-                        setFiles((prev) =>
-                          prev.filter((f) => f.id !== file.id)
-                        );
-                        if (activeFileId === file.id) {
-                          setActiveFileId(files[0].id);
-                        }
-                      }}
-                      className="px-2 text-gray-500 hover:text-red-400"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                onClick={() => {
-                  const newId = crypto.randomUUID();
-                  setFiles((prev) => [
-                    ...prev,
-                    { id: newId, name: `file${prev.length}.c`, content: "" },
-                  ]);
-                  setActiveFileId(newId);
-                }}
-                className="ml-auto px-4 text-gray-400 hover:text-white"
+          {/* File Tabs */}
+          <div className="flex bg-[#252526] overflow-x-auto no-scrollbar border-b border-black/20">
+            {files.map((file) => (
+              <div 
+                key={file.id} 
+                onClick={() => setActiveFileId(file.id)}
+                className={`flex items-center space-x-2 px-4 py-2.5 cursor-pointer border-r border-black/10 transition-all ${
+                  file.id === activeFileId ? "bg-[#1e1e1e] border-t-2 border-t-emerald-500" : "bg-[#2d2d2d] opacity-60 hover:opacity-100"
+                }`}
               >
-                +
-              </button>
-            </div>
+                <span className="text-xs font-mono text-gray-300">{file.name}</span>
+                {files.length > 1 && (
+                  <X 
+                    className="w-3 h-3 text-gray-500 hover:text-red-400" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const filtered = files.filter(f => f.id !== file.id);
+                      setFiles(filtered);
+                      if(activeFileId === file.id) setActiveFileId(filtered[0].id);
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+            <button 
+               onClick={() => {
+                 const id = crypto.randomUUID();
+                 setFiles([...files, { id, name: `module_${files.length}.c`, content: "" }]);
+                 setActiveFileId(id);
+               }}
+               className="p-3 text-gray-500 hover:text-white transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
 
-            {/* TEXTAREA (UI IDENTIC) */}
+          {/* Editor Area */}
+          <div className="flex-1 relative group">
             <textarea
               value={activeFile.content}
-              onChange={(e) =>
-                setFiles((prev) =>
-                  prev.map((f) =>
-                    f.id === activeFileId
-                      ? { ...f, content: e.target.value }
-                      : f
-                  )
-                )
-              }
-              className="w-full h-full p-4 bg-gray-900 text-gray-100 font-mono text-sm resize-none focus:outline-none"
+              onChange={(e) => setFiles(prev => prev.map(f => f.id === activeFileId ? { ...f, content: e.target.value } : f))}
+              className="w-full h-full p-6 bg-[#1e1e1e] text-emerald-50/90 font-mono text-sm resize-none focus:outline-none leading-relaxed"
               spellCheck={false}
+              placeholder="// Type your code here..."
             />
-          </div>
-
-          <div className="h-64 border-t border-gray-700 bg-gray-800 overflow-y-auto">
-            <div className="p-4">
-              <h3 className="text-sm font-semibold text-gray-300 mb-3">
-                Console
-              </h3>
-              {consoleOutput.length > 0 ? (
-                <div className="space-y-1 font-mono text-sm text-gray-300">
-                  {consoleOutput.map((line, index) => (
-                    <div key={index}>{line}</div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500">
-                  Run your code to see output here
-                </div>
-              )}
+            <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Settings2 className="w-5 h-5 text-gray-700 cursor-pointer hover:text-emerald-500" />
             </div>
           </div>
-        </div>
-      </div>
+
+          {/* Console Section */}
+          <div className="h-48 bg-[#1a1a1a] border-t border-[#333]">
+            <div className="flex items-center px-4 py-2 bg-[#252526] text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-[#333]">
+              <Terminal className="w-3 h-3 mr-2" />
+              Output Console
+            </div>
+            <div className="p-4 overflow-y-auto h-[calc(100%-32px)] custom-scrollbar">
+              {consoleOutput.map((line, i) => (
+                <div key={i} className="font-mono text-xs text-gray-400 mb-1 flex animate-in fade-in slide-in-from-left-2">
+                  <span className="text-emerald-900 mr-3 select-none">$</span>
+                  <span className={line.includes("Error") ? "text-red-400" : ""}>{line}</span>
+                </div>
+              ))}
+              {consoleOutput.length === 0 && <div className="text-gray-600 font-mono text-xs italic">Waiting for execution...</div>}
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
