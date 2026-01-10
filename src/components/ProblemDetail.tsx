@@ -75,7 +75,10 @@ export default function ProblemDetail() {
   }, [token, id, user?.name, user?.email]);
 
   const createSubmissionPayload = (): AddSubmissionDTO | null => {
-    if (!userData || !problem) return null;
+    if(!problem)
+      return null;
+    if (!userData || user?.role != "admin") 
+      return null;
     const mergedSourceCode: Record<string, string> = {};
     files.forEach((file) => { mergedSourceCode[file.name] = file.content; });
 
@@ -83,7 +86,7 @@ export default function ProblemDetail() {
       sourceCode: mergedSourceCode,
       namesOfFiles: files.map((f) => f.name),
       userId: userData.id,
-      problemId: problem.problemId,
+      problemId: problem!.problemId,
     };
   };
 

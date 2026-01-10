@@ -11,7 +11,7 @@ export default function ProblemsList() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || !token) return;
+    if (user?.role != "admin" && !user || !token) return;
 
     const fetchProblems = async () => {
       try {

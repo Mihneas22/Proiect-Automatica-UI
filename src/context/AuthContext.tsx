@@ -4,6 +4,7 @@ import { jwtDecode } from "jwt-decode";
 interface AuthClaims {
   name?: string;
   email?: string;
+  role?: string | string[];
 }
 
 interface AuthContextType {
@@ -28,10 +29,12 @@ const getClaims = (jwtToken: string): AuthClaims | null => {
 
     const nameKey = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name";
     const emailKey = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
+    const roleKey = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
 
     return {
       name: decoded[nameKey] ?? null,
       email: decoded[emailKey] ?? null,
+      role: decoded[roleKey] ?? null,
     };
   } catch (err) {
     console.error("JWT decode failed", err);
