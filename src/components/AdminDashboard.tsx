@@ -13,93 +13,97 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-
-interface DashboardStats {
-  totalProblems: number;
-  totalSubmissions: number;
-  totalUsers: number;
-  successRate: number;
-}
-
-interface ProblemSummary {
-  problemId: string;
-  name: string;
-  difficulty: string;
-  acceptanceRate: number;
-  totalSubmissions: number;
-}
+import { Problem, User } from "../types/models";
+import { CalculateNumSub } from "../use_cases/admin/CalculateNumSub";
+import { CalculateAverageAcc } from "../use_cases/admin/CalculateAverageAcc";
 
 export default function AdminDashboard() {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
 
-  const [stats, setStats] = useState<DashboardStats>({
-    totalProblems: 0,
-    totalSubmissions: 0,
-    totalUsers: 0,
-    successRate: 0,
-  });
-  
-  const [problems, setProblems] = useState<ProblemSummary[]>([]);
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdminVerified, setIsAdminVerified] = useState(false);
+
+  const calculateUseCase = new CalculateNumSub();
+  const calculateAverageAccUseCase = new CalculateAverageAcc();
 
   useEffect(() => {
-    if (user?.role != "admin") {
-      setIsLoading(false);
-      return;
-    }
+    const checkAndFetch = async () => {
+      if (!token) {
+        console.log("No token found, redirecting to login...");
+        setIsLoading(false);
+        navigate("/login");
+        return;
+      }
 
-    const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [problemsRes, usersRes] = await Promise.all([
-          fetch("https://localhost:7148/api/admin/getProblems", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/json",
-            },
-          }),
-          fetch("https://localhost:7148/api/admin/getUsers", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/json",
-            },
-          }),
-        ]);
 
-        if (problemsRes.ok) {
-          const data = await problemsRes.json();
-          
-          const rawList = data.problems?.$values || data.problems || [];
-          const problemsList = Array.isArray(rawList) ? rawList : [];
-          
-          setProblems(problemsList);
-          setStats((prev) => ({
-            ...prev,
-            totalProblems: problemsList.length,
-          }));
-        }
+        const checkRes = await fetch("https://localhost:7148/api/admin/checkAdmin", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ Token: token }),
+        });
 
-        if (usersRes.ok) {
-          const data = await usersRes.json();
-          const usersList = data.users?.$values || data.users || [];
-          setStats((prev) => ({
-            ...prev,
-            totalUsers: Array.isArray(usersList) ? usersList.length : 0,
-          }));
+        const data = await checkRes.json();
+        if (checkRes.ok && data.flag === true) {
+          setIsAdminVerified(true);
+
+          const [problemsRes, usersRes] = await Promise.all([
+            fetch("https://localhost:7148/api/admin/getProblems", {
+              headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            }),
+            fetch("https://localhost:7148/api/admin/getUsers", {
+              headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            }),
+          ]);
+
+          if (problemsRes.ok) {
+            const pData = await problemsRes.json();
+            const rawList = pData.problems?.$values || pData.problems || [];
+            setProblems(Array.isArray(rawList) ? rawList : []);
+          }
+
+          if (usersRes.ok) {
+            const uData = await usersRes.json();
+            const rawList = uData.users?.$values || uData.users || [];
+            setUsers(Array.isArray(rawList) ? rawList : []);
+          }
+        } else {
+          console.error("Access denied:", data.message);
+          navigate("/");
         }
       } catch (error) {
-        console.error("Fetch error:", error);
+        console.error("Critical error:", error);
+        navigate("/");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
-  }, [user, token]);
-  
-  const filteredProblems = Array.isArray(problems) 
+    checkAndFetch();
+  }, [token, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-[#F7F8FA]">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-500 font-medium animate-pulse">Verifying permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdminVerified) return null;
+
+  const filteredProblems = Array.isArray(problems)
     ? problems.filter((p) => {
         const name = p.name?.toLowerCase() || "";
         const id = p.problemId?.toLowerCase() || "";
@@ -107,20 +111,6 @@ export default function AdminDashboard() {
         return name.includes(search) || id.includes(search);
       })
     : [];
-
-  if (user?.role != "admin") {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="text-center p-8 bg-white shadow-xl rounded-2xl">
-          <h1 className="text-2xl font-bold text-red-600 mb-2">Acces Refuzat</h1>
-          <p className="text-gray-600">Nu ai permisiuni de administrator.</p>
-          <button onClick={() => navigate("/")} className="mt-4 text-emerald-600 font-bold">
-            Înapoi la Home
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] flex">
@@ -135,10 +125,6 @@ export default function AdminDashboard() {
           <button className="w-full flex items-center space-x-3 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-semibold text-sm">
             <BarChart3 className="w-4 h-4" />
             <span>Overview</span>
-          </button>
-          <button className="w-full flex items-center space-x-3 px-4 py-3 text-gray-500 hover:bg-gray-50 rounded-xl font-medium text-sm">
-            <BookOpen className="w-4 h-4" />
-            <span>Manage Problems</span>
           </button>
         </nav>
       </aside>
@@ -157,10 +143,10 @@ export default function AdminDashboard() {
 
         <div className="p-8 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title="Total Problems" value={stats.totalProblems} icon={<BookOpen />} color="text-blue-600" bg="bg-blue-50" />
-            <StatCard title="Total Submissions" value="14,202" icon={<Activity />} color="text-emerald-600" bg="bg-emerald-50" />
-            <StatCard title="Active Users" value={stats.totalUsers} icon={<Users />} color="text-purple-600" bg="bg-purple-50" />
-            <StatCard title="Avg. Success Rate" value="64.2%" icon={<CheckCircle />} color="text-orange-600" bg="bg-orange-50" />
+            <StatCard title="Total Problems" value={problems.length} icon={<BookOpen />} color="text-blue-600" bg="bg-blue-50" />
+            <StatCard title="Total Submissions" value={calculateUseCase.execute(problems)} icon={<Activity />} color="text-emerald-600" bg="bg-emerald-50" />
+            <StatCard title="Active Users" value={users.length} icon={<Users />} color="text-purple-600" bg="bg-purple-50" />
+            <StatCard title="Avg. Success Rate" value={calculateAverageAccUseCase.execute(problems)} icon={<CheckCircle />} color="text-orange-600" bg="bg-orange-50" />
           </div>
 
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
@@ -183,40 +169,26 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="bg-gray-50/50 text-gray-400 text-[11px] uppercase tracking-widest font-bold">
                     <th className="px-6 py-4">Problem</th>
-                    <th className="px-6 py-4">Difficulty</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm divide-y divide-gray-100">
-                  {isLoading ? (
-                    <tr><td colSpan={3} className="p-10 text-center text-gray-400">Loading data...</td></tr>
-                  ) : filteredProblems.length > 0 ? (
-                    filteredProblems.map((prob) => (
-                      <tr key={prob.problemId} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-gray-800">{prob.name}</span>
-                            <span className="text-xs text-gray-400">ID: {prob.problemId}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${
-                            prob.difficulty === "Hard" ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"
-                          }`}>
-                            {prob.difficulty}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <button className="p-2 text-gray-400 hover:text-blue-600"><Edit3 className="w-4 h-4" /></button>
-                            <button className="p-2 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr><td colSpan={3} className="p-10 text-center text-gray-400">No problems found.</td></tr>
-                  )}
+                  {filteredProblems.map((prob) => (
+                    <tr key={prob.problemId} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-gray-800">{prob.name}</span>
+                          <span className="text-xs text-gray-400">ID: {prob.problemId}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button className="p-2 text-gray-400 hover:text-blue-600"><Edit3 className="w-4 h-4" /></button>
+                          <button className="p-2 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
