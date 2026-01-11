@@ -11,13 +11,13 @@ export default function ProblemsList() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.role != "admin" && !user || !token) return;
+    if (!token) return;
 
     const fetchProblems = async () => {
       try {
         setIsLoading(true);
         const response = await fetch(
-          "http://localhost:5052/api/problem/getProblems",
+          "https://localhost:7148/api/problem/getProblems",
           {
             method: "GET",
             headers: {
@@ -27,10 +27,10 @@ export default function ProblemsList() {
           }
         );
 
-        if (!response.ok) throw new Error("Failed to fetch problems");
+        if (!response.ok) throw new Error("Eroare la descărcarea problemelor");
 
         const result = await response.json();
-        // Handle C# JSON $values wrapping if present
+        
         const problemsArray = Array.isArray(result.problems?.$values)
           ? result.problems.$values
           : Array.isArray(result.problems)
@@ -57,37 +57,33 @@ export default function ProblemsList() {
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-6xl mx-auto px-6">
-        {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Problems</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Probleme</h1>
           <p className="text-gray-500 mt-2">
-            Master your C programming skills with our curated labs.
+            Perfecționează-ți abilitățile de programare în C cu laboratoarele noastre selectate.
           </p>
         </div>
-
-        {/* Table Container */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Title
+                  Titlu
                 </th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Lab
+                  Laborator
                 </th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Acceptance
+                  Rată Succes
                 </th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Tags
+                  Etichete
                 </th>
                 <th className="px-6 py-4 text-right"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
-                // Skeleton Loader
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td colSpan={5} className="px-6 py-6 bg-gray-50/50"></td>
@@ -100,14 +96,12 @@ export default function ProblemsList() {
                     onClick={() => navigate(`/problems/${problem.problemId}`)}
                     className="group hover:bg-emerald-50/30 cursor-pointer transition-all duration-200"
                   >
-                    {/* Problem Name */}
                     <td className="px-6 py-5">
                       <span className="text-sm font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors">
                         {problem.name}
                       </span>
                     </td>
 
-                    {/* Lab Name */}
                     <td className="px-6 py-5">
                       <div className="flex items-center text-sm text-gray-500">
                         <BookOpen className="w-4 h-4 mr-2 text-gray-400" />
@@ -115,7 +109,6 @@ export default function ProblemsList() {
                       </div>
                     </td>
 
-                    {/* Acceptance Rate */}
                     <td className="px-6 py-5">
                       <div className="flex items-center text-sm font-medium">
                         <BarChart3 className="w-4 h-4 mr-2 text-gray-400" />
@@ -129,15 +122,12 @@ export default function ProblemsList() {
                       </div>
                     </td>
 
-                    {/* Tags */}
                     <td className="px-6 py-5">
                       <div className="flex flex-wrap gap-2">
                         {(() => {
-                          // 1. Extrage array-ul brut indiferent de format (standard sau $values)
                           const rawTags =
                             (problem.tags as any)?.$values ?? problem.tags;
 
-                          // 2. Verifică dacă este într-adevăr un array înainte de a folosi slice și map
                           if (Array.isArray(rawTags)) {
                             return rawTags
                               .slice(0, 3)
@@ -151,12 +141,11 @@ export default function ProblemsList() {
                                 </span>
                               ));
                           }
-                          return null; // Nu randează nimic dacă nu sunt tag-uri valide
+                          return null;
                         })()}
                       </div>
                     </td>
 
-                    {/* Action Arrow */}
                     <td className="px-6 py-5 text-right">
                       <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-emerald-500 transform group-hover:translate-x-1 transition-all" />
                     </td>
@@ -168,7 +157,7 @@ export default function ProblemsList() {
                     colSpan={5}
                     className="px-6 py-12 text-center text-gray-500"
                   >
-                    No problems found. Check back later!
+                    Nu am găsit nicio problemă. Reveniți mai târziu!
                   </td>
                 </tr>
               )}

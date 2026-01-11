@@ -21,12 +21,11 @@ export default function Navbar() {
               Code<span className="text-emerald-600">Master</span>
             </span>
           </Link>
-
           <div className="hidden md:flex items-center space-x-1">
             {[
-              { name: "Problems", path: "/" },
-              { name: "Contests", path: "/contests" },
-              { name: "Discuss", path: "/discussions" },
+              { name: "Probleme", path: "/" },
+              { name: "Concursuri", path: "/contests" },
+              { name: "Discuții", path: "/discussions" },
             ].map((link) => (
               <Link
                 key={link.path}
@@ -40,6 +39,19 @@ export default function Navbar() {
                 {link.name}
               </Link>
             ))}
+            
+            {user?.role === "admin" && (
+              <Link
+                to="/admin"
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  isActive("/admin")
+                    ? "text-red-600 bg-red-50"
+                    : "text-red-500 hover:bg-red-50"
+                }`}
+              >
+                Panou Admin
+              </Link>
+            )}
           </div>
         </div>
 
@@ -52,8 +64,8 @@ export default function Navbar() {
                     {user.name}
                   </p>
                   {user.role === "admin" && (
-                    <p className="text-[12px] font-black text-red-500 tracking-wider mt-1">
-                      Admin
+                    <p className="text-[12px] font-black text-red-500 tracking-wider mt-1 uppercase">
+                      Administrator
                     </p>
                   )}
                 </div>
@@ -68,12 +80,15 @@ export default function Navbar() {
 
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right group-hover:translate-y-0 translate-y-2 z-50">
                     <div className="p-2">
+                      <div className="px-4 py-2 mb-1 border-b border-gray-50 sm:hidden">
+                        <p className="text-sm font-bold text-gray-900">{user.name}</p>
+                      </div>
                       <button
                         onClick={logout}
                         className="w-full flex items-center space-x-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors font-semibold"
                       >
                         <LogOut className="w-4 h-4" />
-                        <span>Sign Out</span>
+                        <span>Deconectare</span>
                       </button>
                     </div>
                   </div>
@@ -86,13 +101,13 @@ export default function Navbar() {
                 to="/login"
                 className="px-5 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors"
               >
-                Sign In
+                Autentificare
               </Link>
               <Link
                 to="/register"
                 className="px-5 py-2 text-sm font-bold bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all shadow-lg shadow-gray-200 active:scale-95"
               >
-                Register
+                Înregistrare
               </Link>
             </div>
           )}

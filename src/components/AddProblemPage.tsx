@@ -117,7 +117,7 @@ export default function CreateProblem() {
         alert("Eroare la salvarea problemei pe server.");
       }
     } catch (error) {
-      console.error("Error creating problem:", error);
+      console.error("Eroare la crearea problemei:", error);
       alert("Eroare de conexiune la server.");
     } finally {
       setIsSubmitting(false);
@@ -144,7 +144,7 @@ export default function CreateProblem() {
           <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-all">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl font-bold text-gray-800">Create New Problem</h1>
+          <h1 className="text-xl font-bold text-gray-800">Creare Problemă Nouă</h1>
         </div>
         <button 
           onClick={handleSubmit}
@@ -152,7 +152,7 @@ export default function CreateProblem() {
           className="flex items-center space-x-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-200 disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
-          <span>{isSubmitting ? "Saving..." : "Save Problem"}</span>
+          <span>{isSubmitting ? "Se salvează..." : "Salvează Problema"}</span>
         </button>
       </header>
 
@@ -160,16 +160,16 @@ export default function CreateProblem() {
         <div className="lg:col-span-2 space-y-6">
           <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
             <h2 className="flex items-center text-sm font-bold text-gray-400 uppercase tracking-wider">
-              <MessageSquare className="w-4 h-4 mr-2" /> General Information
+              <MessageSquare className="w-4 h-4 mr-2" /> Informații Generale
             </h2>
             <input
               type="text"
-              placeholder="Problem Name (ex: Sum of Two Integers)"
+              placeholder="Numele Problemei (ex: Suma a două întregi)"
               className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-semibold"
               onChange={(e) => setFormData({...formData, name: e.target.value})}
             />
             <textarea
-              placeholder="Problem description and requirements..."
+              placeholder="Descrierea problemei și cerințe..."
               className="w-full h-64 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none font-sans"
               onChange={(e) => setFormData({...formData, content: e.target.value})}
             />
@@ -178,13 +178,13 @@ export default function CreateProblem() {
           <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="flex items-center text-sm font-bold text-gray-400 uppercase tracking-wider">
-                <Beaker className="w-4 h-4 mr-2" /> Test Cases (JSON)
+                <Beaker className="w-4 h-4 mr-2" /> Cazuri de Test (JSON)
               </h2>
               <button 
                 onClick={() => { handleAddItem('inputsJson'); handleAddItem('outputsJson'); }}
                 className="text-xs bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-100 transition-colors flex items-center"
               >
-                <Plus className="w-3 h-3 mr-1" /> Add New Case
+                <Plus className="w-3 h-3 mr-1" /> Adaugă Caz Nou
               </button>
             </div>
 
@@ -192,7 +192,7 @@ export default function CreateProblem() {
               {formData.inputsJson.map((_, idx) => (
                 <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 relative group transition-all">
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Input {formData.inputsJson.length - idx}</label>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Intrare {formData.inputsJson.length - idx}</label>
                     <input
                       className={`w-full p-2 bg-white border rounded-lg font-mono text-xs transition-all ${
                         isValidJson(formData.inputsJson[idx]) ? "border-gray-200 focus:ring-2 focus:ring-emerald-500/20" : "border-red-500 bg-red-50"
@@ -202,7 +202,7 @@ export default function CreateProblem() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Output {formData.outputsJson.length - idx}</label>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Ieșire {formData.outputsJson.length - idx}</label>
                     <input
                       className={`w-full p-2 bg-white border rounded-lg font-mono text-xs transition-all ${
                         isValidJson(formData.outputsJson[idx]) ? "border-gray-200 focus:ring-2 focus:ring-emerald-500/20" : "border-red-500 bg-red-50"
@@ -226,10 +226,10 @@ export default function CreateProblem() {
         <div className="space-y-6">
           <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
             <h2 className="flex items-center text-sm font-bold text-gray-400 uppercase tracking-wider">
-              <Award className="w-4 h-4 mr-2" /> Scoring & Lab
+              <Award className="w-4 h-4 mr-2" /> Punctaj & Lab
             </h2>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Lab Name</label>
+              <label className="text-xs text-gray-500 mb-1 block">Nume Laborator</label>
               <input 
                 type="text" 
                 className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
@@ -238,7 +238,7 @@ export default function CreateProblem() {
               />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Points</label>
+              <label className="text-xs text-gray-500 mb-1 block">Puncte</label>
               <input 
                 type="number" 
                 className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold" 
@@ -249,7 +249,7 @@ export default function CreateProblem() {
 
           <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
             <h2 className="flex items-center text-sm font-bold text-gray-400 uppercase tracking-wider">
-              <TagIcon className="w-4 h-4 mr-2" /> Tags
+              <TagIcon className="w-4 h-4 mr-2" /> Tag-uri (Etichete)
             </h2>
             <div className="flex flex-wrap gap-2">
               {formData.tags.map((tag, i) => (
@@ -262,7 +262,7 @@ export default function CreateProblem() {
             <input 
               type="text" 
               className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
-              placeholder="New tag and Enter..."
+              placeholder="Tag nou + Enter..."
               onKeyDown={(e) => {
                 if(e.key === 'Enter') {
                   e.preventDefault();
@@ -278,7 +278,7 @@ export default function CreateProblem() {
 
           <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
             <h2 className="flex items-center text-sm font-bold text-gray-400 uppercase tracking-wider">
-              <ListTodo className="w-4 h-4 mr-2" /> Requests
+              <ListTodo className="w-4 h-4 mr-2" /> Cerințe (Requests)
             </h2>
             <div className="space-y-2">
               {formData.requests.map((req, i) => (
@@ -293,7 +293,7 @@ export default function CreateProblem() {
               ))}
             </div>
             <button onClick={() => handleAddItem('requests')} className="text-xs text-emerald-600 font-bold hover:underline flex items-center">
-              <Plus className="w-3 h-3 mr-1" /> Add Request
+              <Plus className="w-3 h-3 mr-1" /> Adaugă Cerință
             </button>
           </section>
         </div>

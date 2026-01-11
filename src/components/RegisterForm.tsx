@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { RegisterUserDTO } from "../types/auth";
 import { Mail, Lock, User, UserPlus, AlertCircle, CheckCircle } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
 }
 
 export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
+  const { token } = useAuth();
+
+  if(token != null)
+    return null!;
+
   const [form, setForm] = useState<RegisterUserDTO>({
     username: "",
     password: "",
@@ -30,14 +36,14 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
     setError(null);
 
     if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match");
+      setError("Parolele nu se potrivesc");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5052/api/user/registerUser", {
+      const response = await fetch("https://localhost:7148/api/user/registerUser", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -46,7 +52,7 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || "Registration failed");
+        setError(data.message || "Înregistrarea a eșuat");
         return;
       }
 
@@ -54,7 +60,7 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
       setTimeout(() => onSwitchToLogin(), 2000);
 
     } catch {
-      setError("Server error. Please try again later.");
+      setError("Eroare de server. Te rugăm să încerci mai târziu.");
     } finally {
       setIsLoading(false);
     }
@@ -67,8 +73,8 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-4">
             <UserPlus className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-white">Join CodeMaster</h2>
-          <p className="text-emerald-100 mt-1">Start your coding journey today</p>
+          <h2 className="text-2xl font-bold text-white">Alătură-te CodeMaster</h2>
+          <p className="text-emerald-100 mt-1">Începe-ți călătoria în programare astăzi</p>
         </div>
 
         <div className="p-8">
@@ -77,8 +83,8 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
               <div className="flex justify-center">
                 <CheckCircle className="w-16 h-16 text-emerald-500" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900">Account Created!</h3>
-              <p className="text-gray-500">Redirecting you to login...</p>
+              <h3 className="text-xl font-bold text-gray-900">Cont Creat!</h3>
+              <p className="text-gray-500">Te redirecționăm către autentificare...</p>
             </div>
           ) : (
             <>
@@ -91,13 +97,13 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700 ml-1">Email Address</label>
+                  <label className="text-sm font-medium text-gray-700 ml-1">Adresă Email</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                       name="email"
                       type="email"
-                      placeholder="name@example.com"
+                      placeholder="nume@exemplu.com"
                       value={form.email}
                       onChange={handleChange}
                       className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
@@ -107,13 +113,13 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700 ml-1">Username</label>
+                  <label className="text-sm font-medium text-gray-700 ml-1">Nume utilizator</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                       name="username"
                       type="text"
-                      placeholder="johndoe123"
+                      placeholder="ionpopescu123"
                       value={form.username}
                       onChange={handleChange}
                       className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
@@ -124,7 +130,7 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700 ml-1">Password</label>
+                    <label className="text-sm font-medium text-gray-700 ml-1">Parolă</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
@@ -140,7 +146,7 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700 ml-1">Confirm</label>
+                    <label className="text-sm font-medium text-gray-700 ml-1">Confirmare</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
@@ -164,7 +170,7 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
-                      <span>Create Account</span>
+                      <span>Creează Cont</span>
                       <UserPlus className="w-4 h-4" />
                     </>
                   )}
@@ -173,13 +179,13 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
 
               <div className="mt-8 text-center">
                 <p className="text-sm text-gray-500">
-                  Already a member?{" "}
+                  Ești deja membru?{" "}
                   <button
                     type="button"
                     className="text-emerald-600 hover:text-emerald-700 font-bold transition-colors"
                     onClick={onSwitchToLogin}
                   >
-                    Login here
+                    Autentifică-te aici
                   </button>
                 </p>
               </div>
