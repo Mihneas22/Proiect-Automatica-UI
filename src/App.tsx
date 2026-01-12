@@ -49,8 +49,9 @@ function App() {
         } catch (error: any) {
           console.error("Error fetching user:", error.message);
         }
+
+        userData();
       };
-      userData();
     }
   }, [user]);
   return (
